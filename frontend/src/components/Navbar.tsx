@@ -33,6 +33,12 @@ export default function Navbar() {
           </Link>
         )}
 
+        {token && (
+          <Link to="/cv-builder" className={styles.adminLink}>
+            Hoja de vida
+          </Link>
+        )}
+
         {token ? (
           <button className={styles.btn} onClick={handleLogout}>
             Cerrar sesión

@@ -8,6 +8,7 @@ import PublicRoute from "./components/PublicRoute";
 import { UserRole } from "./types/user";
 import { Register } from "./pages/Register/Register";
 import { RegisterUser } from "./pages/Register/RegisterUser";
+import CVBuilder from "./pages/CV/CVBuilder";
 
 function App() {
   return (
@@ -51,6 +52,15 @@ function App() {
             element={
               <ProtectedRoute requiredRole={UserRole.admin}>
                 <RegisterUser />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/cv-builder"
+            element={
+              <ProtectedRoute>
+                <CVBuilder />
               </ProtectedRoute>
             }
           />
