@@ -5,6 +5,7 @@ import cors from "cors";
 import "dotenv/config";
 import { AppDataSource } from "./config/db";
 import authRoutes from "./routes/auth.routes";
+import cvRoutes from "./routes/cv.routes";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use(
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/cvs", cvRoutes);
 
 if (!process.env.JWT_SECRET) {
   console.error("❌ JWT_SECRET no definido en .env");

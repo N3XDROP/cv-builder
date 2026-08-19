@@ -1,9 +1,11 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { User } from "../entities/User";
+import { Cv } from "../entities/Cv";
 import "dotenv/config";
 
 const DB_TYPE = process.env.DB_TYPE;
+const Entities = [User, Cv];
 
 let AppDataSource: DataSource;
 
@@ -20,7 +22,7 @@ if (DB_TYPE === "mysql") {
     database: process.env.MYSQL_DATABASE,
     synchronize: true,
     logging: false,
-    entities: [User],
+    entities: Entities,
   });
 }
 
@@ -34,7 +36,7 @@ else if (DB_TYPE === "supabase") {
     ssl: { rejectUnauthorized: false },
     synchronize: true,
     logging: false,
-    entities: [User],
+    entities: Entities,
   });
 }
 

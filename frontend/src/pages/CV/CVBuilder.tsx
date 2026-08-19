@@ -1,85 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./CVBuilder.module.css";
-
-type ExperienceItem = {
-  role: string;
-  company: string;
-  period: string;
-  description: string;
-};
-
-type EducationItem = {
-  degree: string;
-  school: string;
-  period: string;
-};
-
-type CVData = {
-  name: string;
-  title: string;
-  email: string;
-  phone: string;
-  location: string;
-  summary: string;
-  experience: ExperienceItem[];
-  education: EducationItem[];
-  skills: string[];
-};
-
-const initialCV: CVData = {
-  name: "Ana María López",
-  title: "Especialista en Marketing Digital",
-  email: "ana.lopez@email.com",
-  phone: "+57 300 123 4567",
-  location: "Bogotá, Colombia",
-  summary:
-    "Profesional en marketing digital con 6 años de experiencia en estrategia de contenido, campañas de adquisición y análisis de métricas. Me enfoco en la optimización de funnels, retención y crecimiento de marcas con enfoque comercial y medible.",
-  experience: [
-    {
-      role: "Coordinadora de Marketing Digital",
-      company: "Nexa Studio",
-      period: "2022 - Presente",
-      description:
-        "Lideré campañas multicanal, optimicé presupuestos de ads y mejoré la tasa de conversión en un 38% mediante estrategias de remarketing y segmentación avanzada.",
-    },
-    {
-      role: "Analista de Marketing",
-      company: "BrightWorks",
-      period: "2019 - 2022",
-      description:
-        "Desarrollé campañas en Google Ads, Meta y email marketing, además de reportes mensuales de rendimiento para la dirección comercial.",
-    },
-  ],
-  education: [
-    {
-      degree: "Ingeniera Comercial",
-      school: "Universidad del Bosque",
-      period: "2012 - 2018",
-    },
-    {
-      degree: "Especialización en Digital Marketing",
-      school: "Pontificia Universidad Javeriana",
-      period: "2019 - 2020",
-    },
-  ],
-  skills: [
-    "Google Ads",
-    "SEO",
-    "Analítica web",
-    "Branding",
-    "E-commerce",
-    "Content Strategy",
-  ],
-};
+import { getCV, saveCV as persistCV } from "../../services/service";
+import type { CVData, EducationItem, ExperienceItem } from "../../types/cv";
+import { initialCV } from "../../types/cv.initial";
 
 export default function CVBuilder() {
   const [cv, setCV] = useState<CVData>(initialCV);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const updateField = (field: keyof Omit<CVData, "experience" | "education" | "skills">, value: string) => {
+  useEffect(() => {
+    const loadCV = async () => {
+      try {
+        const savedCV = await getCV();
+        if (savedCV) setCV({ ...initialCV, ...savedCV });
+      } catch (error) {
+        setMessage(
+          error instanceof Error ? error.message : "No se pudo cargar el CV",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void loadCV();
+  }, []);
+
+  const updateField = (
+    field: keyof Omit<
+      CVData,
+      "experience" | "education" | "hardSkills" | "softSkills"
+    >,
+    value: string,
+  ) => {
     setCV((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updateExperience = (index: number, field: keyof ExperienceItem, value: string) => {
+  const updateExperience = (
+    index: number,
+    field: keyof ExperienceItem,
+    value: string,
+  ) => {
     setCV((prev) => ({
       ...prev,
       experience: prev.experience.map((item, itemIndex) =>
@@ -88,7 +50,11 @@ export default function CVBuilder() {
     }));
   };
 
-  const updateEducation = (index: number, field: keyof EducationItem, value: string) => {
+  const updateEducation = (
+    index: number,
+    field: keyof EducationItem,
+    value: string,
+  ) => {
     setCV((prev) => ({
       ...prev,
       education: prev.education.map((item, itemIndex) =>
@@ -97,19 +63,72 @@ export default function CVBuilder() {
     }));
   };
 
-  const updateSkills = (value: string) => {
+  const addEducation = () => {
     setCV((prev) => ({
       ...prev,
-      skills: value
-        .split(",")
-        .map((skill) => skill.trim())
-        .filter(Boolean),
+      education: [
+        ...prev.education,
+        {
+          degree: "",
+          school: "",
+          comments: "",
+          period: "",
+        },
+      ],
+    }));
+  };
+
+  const addExperience = () => {
+    setCV((prev) => ({
+      ...prev,
+      experience: [
+        ...prev.experience,
+        { role: "", company: "", period: "", description: "" },
+      ],
+    }));
+  };
+
+  const removeExperience = (index: number) => {
+    setCV((prev) => ({
+      ...prev,
+      experience: prev.experience.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
+  const removeEducation = (index: number) => {
+    setCV((prev) => ({
+      ...prev,
+      education: prev.education.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
+
+  const updateSkills = (type: "hardSkills" | "softSkills", value: string) => {
+    setCV((prev) => ({
+      ...prev,
+      [type]: value.split(",").map((skill) => skill.trim()),
     }));
   };
 
   const handlePrint = () => {
     window.print();
   };
+
+  const saveCV = async () => {
+    setIsSaving(true);
+    setMessage("");
+    try {
+      const result = await persistCV(cv);
+      setMessage(result.message || "CV guardado correctamente");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "No se pudo guardar el CV",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) return <p>Cargando tu CV...</p>;
 
   return (
     <div className={styles.root}>
@@ -119,10 +138,27 @@ export default function CVBuilder() {
           <h1 className={styles.pageTitle}>Hoja de vida</h1>
         </div>
 
-        <button type="button" className={styles.printButton} onClick={handlePrint}>
-          Imprimir en PDF
-        </button>
+        <div className={styles.options}>
+          <button
+            type="button"
+            className={styles.printButton}
+            onClick={handlePrint}
+          >
+            Imprimir en PDF
+          </button>
+
+          <button
+            type="button"
+            className={styles.printButton}
+            onClick={() => void saveCV()}
+            disabled={isSaving}
+          >
+            {isSaving ? "Guardando..." : "Guardar CV"}
+          </button>
+        </div>
       </div>
+
+      {message && <p role="status">{message}</p>}
 
       <div className={styles.layout}>
         <section className={styles.editorPanel}>
@@ -131,27 +167,58 @@ export default function CVBuilder() {
           <div className={styles.fieldGrid}>
             <label className={styles.field}>
               <span>Nombre completo</span>
-              <input value={cv.name} onChange={(e) => updateField("name", e.target.value)} />
+              <input
+                value={cv.name}
+                onChange={(e) => updateField("name", e.target.value)}
+              />
             </label>
 
             <label className={styles.field}>
               <span>Profesión / título</span>
-              <input value={cv.title} onChange={(e) => updateField("title", e.target.value)} />
+              <input
+                value={cv.title}
+                onChange={(e) => updateField("title", e.target.value)}
+              />
             </label>
 
             <label className={styles.field}>
               <span>Email</span>
-              <input value={cv.email} onChange={(e) => updateField("email", e.target.value)} />
+              <input
+                value={cv.email}
+                onChange={(e) => updateField("email", e.target.value)}
+              />
             </label>
 
             <label className={styles.field}>
               <span>Teléfono</span>
-              <input value={cv.phone} onChange={(e) => updateField("phone", e.target.value)} />
+              <input
+                value={cv.phone}
+                onChange={(e) => updateField("phone", e.target.value)}
+              />
             </label>
 
             <label className={styles.fieldFull}>
               <span>Ubicación</span>
-              <input value={cv.location} onChange={(e) => updateField("location", e.target.value)} />
+              <input
+                value={cv.location}
+                onChange={(e) => updateField("location", e.target.value)}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Github</span>
+              <input
+                value={cv.github}
+                onChange={(e) => updateField("github", e.target.value)}
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Certificados</span>
+              <input
+                value={cv.certificados}
+                onChange={(e) => updateField("certificados", e.target.value)}
+              />
             </label>
 
             <label className={styles.fieldFull}>
@@ -172,7 +239,9 @@ export default function CVBuilder() {
                 <span>Cargo</span>
                 <input
                   value={item.role}
-                  onChange={(e) => updateExperience(index, "role", e.target.value)}
+                  onChange={(e) =>
+                    updateExperience(index, "role", e.target.value)
+                  }
                 />
               </label>
 
@@ -180,7 +249,9 @@ export default function CVBuilder() {
                 <span>Empresa</span>
                 <input
                   value={item.company}
-                  onChange={(e) => updateExperience(index, "company", e.target.value)}
+                  onChange={(e) =>
+                    updateExperience(index, "company", e.target.value)
+                  }
                 />
               </label>
 
@@ -188,7 +259,9 @@ export default function CVBuilder() {
                 <span>Periodo</span>
                 <input
                   value={item.period}
-                  onChange={(e) => updateExperience(index, "period", e.target.value)}
+                  onChange={(e) =>
+                    updateExperience(index, "period", e.target.value)
+                  }
                 />
               </label>
 
@@ -197,11 +270,21 @@ export default function CVBuilder() {
                 <textarea
                   rows={3}
                   value={item.description}
-                  onChange={(e) => updateExperience(index, "description", e.target.value)}
+                  onChange={(e) =>
+                    updateExperience(index, "description", e.target.value)
+                  }
                 />
               </label>
+
+              <button type="button" onClick={() => removeExperience(index)}>
+                Eliminar experiencia
+              </button>
             </div>
           ))}
+
+          <button type="button" onClick={addExperience}>
+            + Agregar experiencia
+          </button>
 
           <div className={styles.sectionHeader}>Educación</div>
 
@@ -211,7 +294,9 @@ export default function CVBuilder() {
                 <span>Título</span>
                 <input
                   value={item.degree}
-                  onChange={(e) => updateEducation(index, "degree", e.target.value)}
+                  onChange={(e) =>
+                    updateEducation(index, "degree", e.target.value)
+                  }
                 />
               </label>
 
@@ -219,7 +304,19 @@ export default function CVBuilder() {
                 <span>Institución</span>
                 <input
                   value={item.school}
-                  onChange={(e) => updateEducation(index, "school", e.target.value)}
+                  onChange={(e) =>
+                    updateEducation(index, "school", e.target.value)
+                  }
+                />
+              </label>
+
+              <label className={styles.field}>
+                <span>Comentarios</span>
+                <input
+                  value={item.comments || ""}
+                  onChange={(e) =>
+                    updateEducation(index, "comments", e.target.value)
+                  }
                 />
               </label>
 
@@ -227,26 +324,52 @@ export default function CVBuilder() {
                 <span>Periodo</span>
                 <input
                   value={item.period}
-                  onChange={(e) => updateEducation(index, "period", e.target.value)}
+                  onChange={(e) =>
+                    updateEducation(index, "period", e.target.value)
+                  }
                 />
               </label>
+
+              <button type="button" onClick={() => removeEducation(index)}>
+                Eliminar educación
+              </button>
             </div>
           ))}
+
+          <div>
+            <button type="button" onClick={addEducation}>
+              + Agregar educación
+            </button>
+          </div>
 
           <div className={styles.sectionHeader}>Habilidades</div>
 
           <label className={styles.fieldFull}>
-            <span>Habilidades principales</span>
+            <span>Habilidades duras</span>
             <textarea
               rows={3}
-              value={cv.skills.join(", ")}
-              onChange={(e) => updateSkills(e.target.value)}
+              value={cv.hardSkills.join(", ")}
+              onChange={(e) => updateSkills("hardSkills", e.target.value)}
+              placeholder="Java, Python, JavaScript, React, SQL..."
+            />
+          </label>
+
+          <label className={styles.fieldFull}>
+            <span>Habilidades blandas</span>
+            <textarea
+              rows={3}
+              value={cv.softSkills.join(", ")}
+              onChange={(e) => updateSkills("softSkills", e.target.value)}
+              placeholder="Trabajo en equipo, comunicación, liderazgo..."
             />
           </label>
         </section>
 
         <section className={styles.previewPanel}>
-          <article className={styles.cvPage} aria-label="Vista previa de hoja de vida">
+          <article
+            className={styles.cvPage}
+            aria-label="Vista previa de hoja de vida"
+          >
             <header className={styles.header}>
               <div>
                 <h2>{cv.name || "Nombre completo"}</h2>
@@ -255,26 +378,53 @@ export default function CVBuilder() {
             </header>
 
             <div className={styles.contactRow}>
-              <span>{cv.email || "correo@ejemplo.com"}</span>
-              <span>{cv.phone || "+00 000 000 0000"}</span>
+              <span>
+                <a href={`mailto:${cv.email}`}>{cv.email}</a>
+              </span>
+              <span>
+                <a href={`tel:${cv.phone}`}>{cv.phone}</a>
+              </span>
               <span>{cv.location || "Ciudad, País"}</span>
+              <span>
+                <a href={cv.github} target="_blank" rel="noopener noreferrer">
+                  Github
+                </a>
+              </span>
+              <span>
+                <a
+                  href={cv.certificados}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Certificados
+                </a>
+              </span>
             </div>
 
             <section className={styles.sectionBlock}>
               <h3>Perfil profesional</h3>
-              <p>{cv.summary || "Escribe un resumen profesional para destacar tus fortalezas y experiencia."}</p>
+              <p>
+                {cv.summary ||
+                  "Escribe un resumen profesional para destacar tus fortalezas y experiencia."}
+              </p>
             </section>
 
             <section className={styles.sectionBlock}>
-              <h3>Experiencia</h3>
               {cv.experience.map((item, index) => (
-                <div key={`preview-experience-${index}`} className={styles.itemBlock}>
+                <div
+                  key={`preview-experience-${index}`}
+                  className={styles.itemBlock}
+                >
+                  <h3>Experiencia</h3>
                   <div className={styles.itemHeader}>
                     <strong>{item.role || "Cargo"}</strong>
                     <span>{item.period || "Periodo"}</span>
                   </div>
                   <p className={styles.company}>{item.company || "Empresa"}</p>
-                  <p>{item.description || "Describe tus responsabilidades o logros relevantes."}</p>
+                  <p>
+                    {item.description ||
+                      "Describe tus responsabilidades o logros relevantes."}
+                  </p>
                 </div>
               ))}
             </section>
@@ -282,28 +432,50 @@ export default function CVBuilder() {
             <section className={styles.sectionBlock}>
               <h3>Educación</h3>
               {cv.education.map((item, index) => (
-                <div key={`preview-education-${index}`} className={styles.itemBlock}>
+                <div
+                  key={`preview-education-${index}`}
+                  className={styles.itemBlock}
+                >
                   <div className={styles.itemHeader}>
                     <strong>{item.degree || "Título"}</strong>
                     <span>{item.period || "Periodo"}</span>
                   </div>
                   <p>{item.school || "Institución"}</p>
+
+                  {item.comments && (
+                    <p className={styles.educationComment}>{item.comments}</p>
+                  )}
                 </div>
               ))}
             </section>
 
             <section className={styles.sectionBlock}>
-              <h3>Habilidades</h3>
-              <div className={styles.skillList}>
-                {cv.skills.length > 0 ? (
-                  cv.skills.map((skill, index) => (
-                    <span key={`${skill}-${index}`} className={styles.skillPill}>
-                      {skill}
-                    </span>
-                  ))
-                ) : (
-                  <span className={styles.emptyText}>Añade tus principales habilidades.</span>
-                )}
+              <h3 className={styles.skillsTitle}>Habilidades</h3>
+
+              <div className={styles.skillsContainer}>
+                <div className={styles.skillsColumn}>
+                  <h4>Habilidades duras</h4>
+
+                  <ul>
+                    {cv.hardSkills.map(
+                      (skill, index) =>
+                        skill.trim() && <li key={`hard-${index}`}>{skill}</li>,
+                    )}
+                  </ul>
+                </div>
+
+                <div className={styles.skillsDivider}></div>
+
+                <div className={styles.skillsColumn}>
+                  <h4>Habilidades blandas</h4>
+
+                  <ul>
+                    {cv.softSkills.map(
+                      (skill, index) =>
+                        skill.trim() && <li key={`soft-${index}`}>{skill}</li>,
+                    )}
+                  </ul>
+                </div>
               </div>
             </section>
           </article>
